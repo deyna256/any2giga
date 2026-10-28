@@ -9,6 +9,7 @@ APIs and open questions.
 These rules apply to `src/any2giga/`. They follow the ideas of
 [Elegant Objects](https://www.yegor256.com/elegant-objects.html), adapted to Python and this
 gateway. Examples such as `Usage` and `NoUsage` illustrate the rules; they are not implemented yet.
+The [references](#references) explain the ideas and technical constraints behind these rules.
 
 1. **Classes describe things.** A class represents a concept in the problem, not a collection of
    procedures. Do not create `*Manager`, `*Helper`, `*Parser`, `*Runner` or `*Service` classes.
@@ -89,3 +90,58 @@ gateway. Examples such as `Usage` and `NoUsage` illustrate the rules; they are n
 
 `tests/` contains package tests. `pyproject.toml` and `uv.lock` define dependencies, and
 `Justfile` contains commands used locally and in CI.
+
+## References
+
+These sources informed the rules above. The exact rules and exceptions are decisions made for
+Any2Giga; the sources do not necessarily recommend the same choices.
+
+### Object design
+
+- Yegor Bugayenko, [Elegant Objects](https://www.yegor256.com/elegant-objects.html), volumes 1
+  and 2. The original object design ideas behind rules 1–6.
+- Articles by the same author: [class names](https://www.yegor256.com/2015/03/09/objects-end-with-er.html),
+  [constructors](https://www.yegor256.com/2015/05/07/ctors-must-be-code-free.html),
+  [immutability](https://www.yegor256.com/2014/06/09/objects-should-be-immutable.html),
+  [null](https://www.yegor256.com/2014/05/13/why-null-is-bad.html),
+  [wrappers](https://www.yegor256.com/2015/02/26/composable-decorators.html) and
+  [fakes](https://www.yegor256.com/2014/09/23/built-in-fake-objects.html).
+- [convy](https://github.com/deyna256/convy/blob/eb7c63d4042f62b28d6734330ea22759f608cb0f/ARCHITECTURE.md)
+  and [wicket](https://github.com/deyna256/wicket/blob/78ee62cc3991ad74137dad57af9620b55701bcad/ARCHITECTURE.md)
+  show how those ideas are used in Python. Their rules also informed our own choices.
+
+### Python and API boundaries
+
+- [msgspec Structs](https://msgspec.dev/structs) and
+  [`UNSET`](https://msgspec.dev/supported-types#unset): frozen objects, validation, unknown fields
+  and the difference between an omitted field and `null` (rules 2, 6 and 7).
+- [Python protocols](https://typing.python.org/en/latest/spec/protocol.html) and
+  [task cancellation](https://docs.python.org/3.12/library/asyncio-task.html#task-cancellation)
+  describe the language features used by rules 4 and 9.
+- [Litestar application lifespan](https://docs.litestar.dev/2/usage/applications.html#lifespan-context-managers)
+  and the [ASGI HTTP specification](https://asgi.readthedocs.io/en/latest/specs/www.html) cover
+  resource lifetime and client disconnects (rules 3, 9 and 10).
+- [OpenAI Responses migration](https://developers.openai.com/api/docs/guides/migrate-to-responses),
+  [function calling](https://developers.openai.com/api/docs/guides/function-calling) and
+  [GigaChat Chat Completions v2](https://developers.sber.ru/docs/ru/gigachat/api/reference/rest/post-chat-v-2)
+  describe the API contracts and function data we translate (rules 7 and 8).
+
+### Reliability, privacy and testing
+
+- [HTTP semantics: idempotency](https://www.rfc-editor.org/rfc/rfc9110.html#section-9.2.2) and
+  [`Retry-After`](https://www.rfc-editor.org/rfc/rfc9110.html#section-10.2.3),
+  [AWS on backoff and jitter](https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/)
+  and [OpenAI on rate limits](https://developers.openai.com/api/docs/guides/rate-limits#retrying-with-exponential-backoff)
+  explain retry safety and delays (rules 9 and 10).
+- GigaChat SDK 0.2.3 source: [retries](https://github.com/ai-forever/gigachat/blob/v0.2.3/src/gigachat/retry.py),
+  [authentication](https://github.com/ai-forever/gigachat/blob/v0.2.3/src/gigachat/authentication.py),
+  [exceptions](https://github.com/ai-forever/gigachat/blob/v0.2.3/src/gigachat/exceptions.py)
+  and [stream parsing](https://github.com/ai-forever/gigachat/blob/v0.2.3/src/gigachat/api/utils.py).
+  These details are version-specific and must be checked again on SDK upgrades (rules 9–11).
+- [OWASP logging guidance](https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html)
+  covers sensitive data in logs (rule 11).
+- [OpenAI gateway compatibility](https://learn.chatgpt.com/docs/enterprise/gateway-compatibility)
+  covers stream completion, tool calls and useful errors. It describes Codex-specific requirements;
+  it does not establish that Any2Giga supports Codex (rule 12).
+- [Python package metadata](https://packaging.python.org/en/latest/specifications/pyproject-toml/#dependencies)
+  describes how to declare direct dependencies (rule 13).
