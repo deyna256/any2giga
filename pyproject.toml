@@ -53,7 +53,19 @@ line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "W", "F", "I", "B", "C4", "UP", "SIM", "RUF"]
+select = [
+    "ANN", "ARG", "ASYNC", "B", "BLE", "C4", "DTZ", "E", "F", "I", "LOG", "PGH", "PLE",
+    "PLW", "PT", "RUF", "S", "SIM", "T10", "T20", "UP", "W",
+]
+# Timeouts can be part of an async operation's public contract.
+ignore = ["ASYNC109"]
+
+[tool.ruff.lint.per-file-ignores]
+# pytest uses assertions; these tests run controlled local commands.
+"tests/**" = ["S101"]
+"tests/test_release_notes.py" = ["S603"]
+# This command writes release notes to stdout.
+"tools/release_notes.py" = ["T201"]
 
 [tool.towncrier]
 directory = "changelog.d"

@@ -1,5 +1,3 @@
-"""Check that the distribution and its chosen runtime stack can be imported."""
-
 from importlib import metadata, resources
 
 from gigachat import GigaChat
