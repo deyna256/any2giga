@@ -1,7 +1,8 @@
 # Contributing to Any2Giga
 
 Keep issues, commits, documentation and code comments clear and in plain English. Follow the
-[Code of Conduct](CODE_OF_CONDUCT.md) and distinguish implemented behaviour from plans.
+[architecture rules](ARCHITECTURE.md) and [Code of Conduct](CODE_OF_CONDUCT.md). Distinguish
+implemented behaviour from plans.
 
 ## Development
 
@@ -14,7 +15,7 @@ run `uv lock` and include the updated `uv.lock` in the change.
 | Command | Purpose |
 | --- | --- |
 | `just test` | Run the tests. |
-| `just cov` | Run the tests with a coverage report. |
+| `just cov` | Run the tests with statement and branch coverage reports. |
 | `just lint` | Check formatting, style and import order. |
 | `just format` | Format code and apply Ruff's automatic fixes. |
 | `just type` | Check types in the package and tests. |
@@ -23,8 +24,12 @@ run `uv lock` and include the updated `uv.lock` in the change.
 | `just release-notes` | Move changelog fragments into the changelog. |
 
 Run the relevant checks before a change is submitted. Tests must not require live GigaChat access
-or credentials by default. Put optional live checks behind an explicit opt-in and keep secrets,
-prompts and model responses out of fixtures and logs.
+or credentials by default. Put optional live checks behind an explicit opt-in. Use synthetic data
+in fixtures; do not include credentials or real prompts and model responses.
+
+`just cov` reports missing lines and branches in the terminal and writes separate statement and
+branch totals to `build/coverage.json`, including per-function and per-class details. The terminal's
+coverage percentage combines statements and branches.
 
 ## Issues and changes
 

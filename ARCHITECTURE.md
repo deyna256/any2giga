@@ -64,32 +64,59 @@ The [references](#references) explain the ideas and technical constraints behind
 
 10. **Bound retries and resource use.** The gateway owns its retry policy. Limit attempts and
     total waiting time, honor `Retry-After` in seconds or as an HTTP date, and use backoff with
-    jitter. Retry only when the request is known to be safe to repeat. Never retry after sending
-    any stream data to the client. Bound the queue and its wait; release a slot when the upstream
-    attempt ends or is cancelled.
+    jitter. One deadline covers the queue, attempts and retry delays. If `Retry-After` is longer
+    than the time left, stop instead of retrying early. Set separate limits for an active stream's
+    idle time and lifetime. Retry only when the request is known to be safe to repeat. Never retry
+    after sending any stream data to the client. Bound the queue and its wait; release a slot when
+    the upstream attempt ends or is cancelled.
 
     Account for the SDK's retry and authentication behavior so it cannot replay a stream after
     partial output. Client SDKs may retry independently. A limit in one process does not protect
     an account shared with other processes or applications.
 
 11. **Keep sensitive data out of logs.** Internal logic does not print or log. The server may log
-    safe operational details at its boundary. Credentials, prompts, model responses and raw
-    provider errors must not enter normal logs or client error messages. Check SDK logs and error
-    strings as well as our own.
+    safe operational details at its boundary, using only fields chosen for that purpose.
+    Credentials, prompts, model responses and raw provider errors must not enter normal logs or
+    client error messages. Check SDK, framework and server logs, as well as our own. Exception
+    chains and groups can contain sensitive data even when the outer error message is safe.
+    `raise ... from None` hides the context in a normal traceback but does not remove it. Suppress
+    or replace unsafe SDK records and report the failure with safe fields. Protect each log
+    destination and check what enters a logging queue; a filter on the root logger alone does not
+    filter records from child loggers. Disable debug mode in production; its error response can
+    expose exception details. Test the configured logs and client errors with synthetic secrets
+    and content.
 
 12. **Test behavior at each boundary.** Use fakes for fast tests and the official OpenAI SDK to
-    check the HTTP contract. Test streaming and disconnects through a real local connection as
-    well: [HTTPX's ASGI transport](https://github.com/encode/httpx/blob/0.28.1/httpx/_transports/asgi.py)
-    buffers the response and cannot prove incremental delivery. Live GigaChat tests run separately
-    and require explicit credentials.
+    check the HTTP contract. Check the same predictable behavior for fakes and SDK adapters with
+    controlled provider responses. Test streaming through a real local connection:
+    verify incremental delivery, errors after output starts, client disconnects and cleanup.
+    [HTTPX's ASGI transport](https://github.com/encode/httpx/blob/0.28.1/httpx/_transports/asgi.py)
+    and [Litestar's test transport](https://github.com/litestar-org/litestar/blob/v2.25.0/litestar/testing/transport.py)
+    buffer responses and cannot prove incremental delivery. Live GigaChat tests run separately and
+    require explicit credentials.
 
 13. **Keep dependencies deliberate.** Declare every directly used dependency. Adding a runtime
     dependency or making a significant architectural choice needs a short decision record.
     `msgspec` is currently supplied by Litestar; add it as a direct dependency when our code first
     uses it.
 
-`tests/` contains package tests. `pyproject.toml` and `uv.lock` define dependencies, and
-`Justfile` contains commands used locally and in CI.
+14. **Keep decisions separate from I/O.** Translation and retry decisions should use data and
+    explicit inputs. Connections, clocks and randomness belong to the components that use them.
+    Keep this separation where it makes behavior easier to understand and test, without adding
+    abstractions just for that purpose.
+
+## Development and releases
+
+- Document the public HTTP contract for each endpoint: what is supported, rejected or not yet
+  verified, including relevant model limits and example errors. Update the contract and its tests
+  together. User-facing changes also get a changelog entry. Distinguish tests with controlled
+  responses from live provider checks.
+- Measure statement and branch coverage. Use the report to find gaps, not as proof that tests are
+  effective. Test the independent effects of conditions in critical decisions, such as retries.
+  Use mutation testing selectively when it can reveal weak assertions.
+- Before release, install the built wheel with its dependencies in a clean environment and test it.
+  Test the lowest supported direct dependency versions and current compatible versions as well.
+  The lockfile alone does not cover the versions that users may install from package metadata.
 
 ## References
 
@@ -115,9 +142,10 @@ Any2Giga; the sources do not necessarily recommend the same choices.
 - [msgspec Structs](https://msgspec.dev/structs) and
   [`UNSET`](https://msgspec.dev/supported-types#unset): frozen objects, validation, unknown fields
   and the difference between an omitted field and `null` (rules 2, 6 and 7).
-- [Python protocols](https://typing.python.org/en/latest/spec/protocol.html) and
-  [task cancellation](https://docs.python.org/3.12/library/asyncio-task.html#task-cancellation)
-  describe the language features used by rules 4 and 9.
+- [Python protocols](https://typing.python.org/en/latest/spec/protocol.html),
+  [task cancellation](https://docs.python.org/3.12/library/asyncio-task.html#task-cancellation) and
+  [timeouts](https://docs.python.org/3.12/library/asyncio-task.html#timeouts) describe the language
+  features used by rules 4, 9 and 10.
 - [Litestar application lifespan](https://docs.litestar.dev/2/usage/applications.html#lifespan-context-managers)
   and the [ASGI HTTP specification](https://asgi.readthedocs.io/en/latest/specs/www.html) cover
   resource lifetime and client disconnects (rules 3, 9 and 10).
@@ -139,9 +167,18 @@ Any2Giga; the sources do not necessarily recommend the same choices.
   and [stream parsing](https://github.com/ai-forever/gigachat/blob/v0.2.3/src/gigachat/api/utils.py).
   These details are version-specific and must be checked again on SDK upgrades (rules 9–11).
 - [OWASP logging guidance](https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html)
-  covers sensitive data in logs (rule 11).
+  covers sensitive data in logs. [Python exception context](https://docs.python.org/3.12/library/exceptions.html#exception-context),
+  [logging filters](https://docs.python.org/3.12/library/logging.html#filter-objects),
+  [queue handlers](https://docs.python.org/3.12/library/logging.handlers.html#logging.handlers.QueueHandler.prepare)
+  and [Litestar logging](https://docs.litestar.dev/2/usage/logging.html) explain where exception
+  and dependency data can appear (rule 11).
 - [OpenAI gateway compatibility](https://learn.chatgpt.com/docs/enterprise/gateway-compatibility)
   covers stream completion, tool calls and useful errors. It describes Codex-specific requirements;
   it does not establish that Any2Giga supports Codex (rule 12).
+- [Google on test doubles](https://testing.googleblog.com/2024/02/increase-test-fidelity-by-avoiding-mocks.html)
+  and [coverage](https://testing.googleblog.com/2020/08/code-coverage-best-practices.html) discuss
+  fidelity and gaps. [coverage.py branch coverage](https://coverage.readthedocs.io/en/7.17.0/branch.html)
+  explains what the branch report measures (rule 12 and tests).
 - [Python package metadata](https://packaging.python.org/en/latest/specifications/pyproject-toml/#dependencies)
-  describes how to declare direct dependencies (rule 13).
+  and [uv resolution](https://docs.astral.sh/uv/concepts/resolution/#resolution-strategy) describe
+  dependency declarations and checking lower bounds (rule 13 and releases).

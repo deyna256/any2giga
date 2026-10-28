@@ -1,10 +1,10 @@
 # Any2Giga
 
-Any2Giga is intended to let applications use GigaChat through an OpenAI-compatible API.
+Any2Giga is a planned OpenAI-compatible API gateway for GigaChat.
 
-The project is at the infrastructure stage. The gateway, its API routes and a server command
-have not been implemented, and there is no release yet. The planned scope and open questions are
-in `docs/superpowers/specs/2026-10-27-any2giga-design.md` in the repository.
+The gateway and server command are not implemented, and there is no release yet. The
+[design draft](https://github.com/deyna256/any2giga/blob/main/docs/superpowers/specs/2026-10-27-any2giga-design.md)
+describes the planned scope and open questions.
 
 ## Development
 
@@ -19,7 +19,8 @@ just build
 ```
 
 The project uses Python 3.12 or later. `just --list` shows the other development commands.
-Tests do not require GigaChat credentials or access to a live model.
+Tests do not require GigaChat credentials or access to a live model. See the
+[contribution guide](https://github.com/deyna256/any2giga/blob/main/CONTRIBUTING.md) for details.
 
 ## License
 

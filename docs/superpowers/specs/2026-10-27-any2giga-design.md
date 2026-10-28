@@ -17,16 +17,9 @@ demand and a clear contract.
 
 ## Principles
 
-- **Correctness:** Preserve the meaning of requests and responses. Return a clear error when a
-  feature cannot be supported; do not silently ignore meaningful parameters.
-- **Clear compatibility:** Document supported features, model limits and example errors for each
-  API.
-- **Reliability:** Limit concurrency and handle `429` errors, timeouts, streams and client
-  disconnects.
-- **Simplicity:** Share code where it helps, but do not build a universal internal format for
-  future APIs. Correctness, security and testability matter more than line count.
-- **Privacy:** Keep credentials, prompts and model responses out of normal logs. Check that
-  dependencies do the same.
+Preserve the meaning of requests and responses, and report unsupported features clearly.
+Correctness, security and testability matter more than line count. See the
+[architecture principles](../../../ARCHITECTURE.md) for development and testing rules.
 
 ## Decisions
 
@@ -46,7 +39,7 @@ only GigaChat v2. Embeddings and models use their official GigaChat v1 routes.
 
 Sources: [GigaChat Chat Completions v2](https://developers.sber.ru/docs/ru/gigachat/api/reference/rest/post-chat-v-2),
 [embeddings](https://developers.sber.ru/docs/ru/gigachat/guides/embeddings) and
-[models](https://developers.sber.ru/docs/ru/gigachat/api/reference/rest/gigachat-api).
+[models](https://developers.sber.ru/docs/ru/gigachat/api/reference/rest/get-models).
 
 These routes define the first release's scope. They do not imply support for every OpenAI parameter
 or additional route.
