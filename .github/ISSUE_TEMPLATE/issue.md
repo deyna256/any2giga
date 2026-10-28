@@ -6,7 +6,8 @@ about: A bug, a feature, maintenance, documentation or a question
 ## Problem
 
 <!-- What happens today, and what is missing or wrong?
-     For a bug, include reproduction steps, expected and actual behaviour, and relevant versions. -->
+     For a bug, include reproduction steps, expected and actual behaviour, Python and Any2Giga
+     versions, the client, and the GigaChat model and API version when relevant. -->
 
 ## Why it matters
 
@@ -16,4 +17,5 @@ about: A bug, a feature, maintenance, documentation or a question
 
 <!-- List observable results, including the checks needed to verify them. -->
 
-<!-- Keep credentials, prompts and private model responses out of the issue. -->
+<!-- One outcome per issue. A maintainer adds one type label: bug, feature, maintenance, docs or question.
+     Keep credentials, prompts and private model responses out of the issue. -->

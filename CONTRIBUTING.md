@@ -31,17 +31,80 @@ in fixtures; do not include credentials or real prompts and model responses.
 branch totals to `build/coverage.json`, including per-function and per-class details. The terminal's
 coverage percentage combines statements and branches.
 
-## Issues and changes
+## Issues
 
-Keep each issue focused on one outcome. Describe the problem, why it matters and the observable
-result that completes it. Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
+Check existing issues before opening one. Give each issue one clear outcome and a short title that
+describes the problem or change. Use the [issue template](.github/ISSUE_TEMPLATE/issue.md) to
+describe the problem, why it matters and the observable results and checks that complete the work.
 
-Use a short descriptive branch for work without an issue; for issue work, use the issue number as
-the branch name. Use a one-line commit message beginning with an action, for example `#1: add the
-request validator`, or `add the pull request template` for work without an issue.
+Keep the issue self-contained. Add examples, links and scope limits when useful. Separate agreed
+behaviour from proposals; do not invent implementation details. Keep credentials, prompts and
+private model responses out of issues. Report vulnerabilities privately as described in
+[SECURITY.md](SECURITY.md).
 
-Use the pull request template to explain the problem, resulting behaviour and checks performed.
-Do not add generated-by lines, tool attribution, co-author lines or sign-off trailers.
+Give each issue one type label: `bug`, `feature`, `maintenance`, `docs` or `question`. Add `ci`
+for CI and developer tooling, and `good first issue` for small, self-contained tasks. Close
+duplicates and declined issues with the matching close reason instead of a label. Link the original
+issue when closing a duplicate.
+
+## Branches and commits
+
+For issue work, branch from `main` and use only the issue number as the branch name, for example
+`1` for issue #1. Keep the branch focused on its issue. Work without an issue uses a short
+descriptive branch name.
+
+Use a one-line commit message that starts with an action. For issue work, include the issue number,
+for example `#1: add the request validator`. Without an issue, use a line such as
+`add the pull request template`. Keep unrelated changes out of the commit and inspect the staged
+diff before committing. Add any required [changelog fragment](#changelog) in the same commit as the
+change.
+
+Do not add generated-by lines or tool attribution to commits, issues, pull requests, reviews,
+comments, documentation or code. Do not add commit bodies, co-author lines or sign-off trailers.
+
+## Pull requests
+
+Use the [pull request template](.github/pull_request_template.md) to explain the problem, resulting
+behaviour, relevant decisions and checks. Keep it short; do not repeat the issue or list every
+changed file. Add migration or breaking-change notes when needed. Link the issue and use
+`Closes #<number>` when the pull request completes it. Update the description and affected
+documentation when the change evolves.
+
+Open a draft pull request while work is in progress. When it is ready, mark it ready for review. If
+a maintainer other than the author is available, request their review and request it again after
+addressing the findings.
+
+## Reviews
+
+Review the submitted change against the issue and the checklist below. State what the code does,
+its consequences and what you checked. Do not restate the diff or guess at intent; ask instead.
+
+Put findings about specific code in inline comments. Use the review body for the verdict and
+findings that span files. Mark non-blocking findings with one of these prefixes:
+
+- **Nit:** a small or stylistic point the author may skip.
+- **Question:** a request for clarification that does not block the change.
+
+Other findings block the merge until resolved. A question also blocks the merge if its answer is
+needed to judge the change. Use these sections in the review body, omitting empty sections:
+
+- **Summary:** one sentence on the change and whether it is ready.
+- **Blocking:** each problem, its `file:line`, consequence and a concrete fix or check.
+- **Non-blocking:** nits, questions and follow-ups.
+- **Checked:** commands run and anything not verified.
+
+Request changes only for blocking findings. If only nits remain, approve and say which ones you
+expect to be addressed. Move work outside the pull request's scope to a separate issue and link it.
+
+### Review checklist
+
+- The change follows the [architecture rules](ARCHITECTURE.md#invariants), including how to document
+  exceptions.
+- The public HTTP contract and its documentation match the behaviour.
+- Errors and logs do not expose credentials, prompts or private model responses.
+- New behaviour has tests; fakes and adapters have contract tests where applicable.
+- Relevant checks pass, including `just lint`, `just type` and `just test` for code changes.
+- User-visible changes have a [changelog fragment](#changelog).
 
 ## Changelog
 
