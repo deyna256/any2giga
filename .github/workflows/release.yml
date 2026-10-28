@@ -1,0 +1,180 @@
+name: Release
+
+# Run on main after committing the version and release notes.
+on: workflow_dispatch
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    name: Check and build the release
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      artifact: ${{ steps.upload.outputs.artifact-id }}
+    env:
+      UV_LOCKED: '1'
+    steps:
+      - name: Check out the release commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: '0.13.6'
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Set up Just
+        uses: extractions/setup-just@v4
+        with:
+          just-version: '1.59.0'
+
+      - name: Decide what is being released
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="$(uv version --short)"
+          if git show-ref --verify --quiet "refs/tags/v$version"; then
+            echo "::error::tag v$version already exists; raise the version first"
+            exit 1
+          fi
+          if gh release view "v$version" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::v$version is already released; raise the version first"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Check the release notes are committed
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if compgen -G "changelog.d/*.md" >/dev/null; then
+            echo "::error::move changelog fragments into CHANGELOG.md before releasing"
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/release/dist"
+          python3 tools/release_notes.py "$VERSION" > "$RUNNER_TEMP/release/notes.md"
+
+      - name: Check formatting and style
+        run: just lint
+
+      - name: Check types
+        run: just type
+
+      - name: Run tests
+        run: just test
+
+      - name: Build distributions
+        run: |
+          just build
+          cp dist/*.whl dist/*.tar.gz "$RUNNER_TEMP/release/dist/"
+
+      - name: Upload the release files
+        id: upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/release/
+          if-no-files-found: error
+
+  attest:
+    name: Attest the distributions
+    needs: checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    steps:
+      - name: Download the release files
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.checks.outputs.artifact }}
+          path: ${{ runner.temp }}/release/
+
+      - name: Attest the distributions
+        uses: actions/attest-build-provenance@e4d4f7c39adfa4c260fb5c147f0622000aa14b99 # v4.0.0
+        with:
+          subject-path: |
+            ${{ runner.temp }}/release/dist/*.whl
+            ${{ runner.temp }}/release/dist/*.tar.gz
+
+  release:
+    name: Create the GitHub release
+    needs: [checks, attest]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      PREPARED_VERSION: ${{ needs.checks.outputs.version }}
+    steps:
+      - name: Check out the release commit
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Download the release files
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.checks.outputs.artifact }}
+          path: ${{ runner.temp }}/release/
+
+      - name: Validate the release files
+        run: |
+          python3 -I - <<'PY'
+          import os
+          import re
+          import tomllib
+
+          with open("pyproject.toml", "rb") as file:
+              version = tomllib.load(file)["project"]["version"]
+          if version != os.environ["PREPARED_VERSION"] or not re.fullmatch(r"[0-9][0-9A-Za-z.+!-]*", version):
+              raise SystemExit("Prepared version does not match the release commit")
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as file:
+              file.write(f"VERSION={version}\n")
+          PY
+          git check-ref-format "refs/tags/v$PREPARED_VERSION"
+          test -f "$RUNNER_TEMP/release/notes.md"
+          test ! -L "$RUNNER_TEMP/release/notes.md"
+          shopt -s nullglob
+          wheels=("$RUNNER_TEMP"/release/dist/*.whl)
+          sdists=("$RUNNER_TEMP"/release/dist/*.tar.gz)
+          if (( ${#wheels[@]} != 1 || ${#sdists[@]} != 1 )); then
+            echo "::error::expected exactly one wheel and one source distribution"
+            exit 1
+          fi
+          test -f "${wheels[0]}"
+          test ! -L "${wheels[0]}"
+          test -f "${sdists[0]}"
+          test ! -L "${sdists[0]}"
+
+      - name: Push the tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git -c credential.helper= -c credential.helper='!gh auth git-credential' \
+            push origin "$GITHUB_SHA:refs/tags/v$VERSION"
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v$VERSION" "$RUNNER_TEMP"/release/dist/*.whl "$RUNNER_TEMP"/release/dist/*.tar.gz \
+            --verify-tag --notes-file "$RUNNER_TEMP/release/notes.md"

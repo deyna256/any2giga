@@ -1,0 +1,31 @@
+name: Publish
+
+# Upload the distributions of an existing GitHub release unchanged.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The release tag to publish, for example v0.1.0
+        required: true
+        type: string
+
+jobs:
+  pypi:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment:
+      name: pypi
+      url: https://pypi.org/p/any2giga
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ inputs.tag }}
+    steps:
+      - name: Take distributions from the release
+        run: gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir dist --pattern '*.whl' --pattern '*.tar.gz'
+
+      - name: Upload to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
