@@ -50,8 +50,10 @@ jobs:
       - name: Check the built wheel
         run: |
           uv venv "$RUNNER_TEMP/any2giga-wheel"
-          uv pip install --python "$RUNNER_TEMP/any2giga-wheel/bin/python" --no-deps dist/*.whl
-          "$RUNNER_TEMP/any2giga-wheel/bin/python" -c "from importlib import metadata, resources; import any2giga; assert metadata.version('any2giga') and resources.files(any2giga).joinpath('py.typed').is_file()"
+          uv pip install --python "$RUNNER_TEMP/any2giga-wheel/bin/python" dist/*.whl
+          uv pip check --python "$RUNNER_TEMP/any2giga-wheel/bin/python"
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/any2giga-wheel/bin/python" -c "from importlib import metadata, resources; import any2giga, gigachat, litestar; assert metadata.version('any2giga') and resources.files(any2giga).joinpath('py.typed').is_file()"
 
   test:
     runs-on: ${{ matrix.os }}
@@ -86,4 +88,22 @@ jobs:
           just-version: '1.59.0'
 
       - name: Run tests
+        if: matrix.os != 'ubuntu-24.04' || matrix.python-version != '3.14'
+        run: just test
+
+      - name: Run tests with coverage
+        if: matrix.os == 'ubuntu-24.04' && matrix.python-version == '3.14'
+        run: just cov
+
+      - name: Resolve lowest direct dependencies
+        if: matrix.os == 'ubuntu-24.04' && matrix.python-version == '3.12'
+        env:
+          UV_LOCKED: '0'
+          UV_RESOLUTION: lowest-direct
+        run: uv lock --upgrade
+
+      - name: Test lowest direct dependencies
+        if: matrix.os == 'ubuntu-24.04' && matrix.python-version == '3.12'
+        env:
+          UV_RESOLUTION: lowest-direct
         run: just test

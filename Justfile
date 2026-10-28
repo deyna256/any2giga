@@ -2,9 +2,9 @@
 test:
     uv run --locked pytest
 
-# Report which lines in the package the test suite did not reach.
+# Report which lines and branches in the package the test suite did not reach.
 cov:
-    uv run --locked pytest --cov=any2giga --cov-report=term-missing
+    uv run --locked pytest --cov=any2giga --cov-branch --cov-report=term-missing --cov-report=json:build/coverage.json
 
 # Check formatting, style and import order without changing files.
 lint:
